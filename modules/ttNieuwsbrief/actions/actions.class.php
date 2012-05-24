@@ -8,8 +8,9 @@ class ttNieuwsbriefActions extends sfActions
 {
 
   public function preExecute()
-  {
-
+  { 
+    $this->veld = sfConfig::get('sf_ttNieuwsbrief_veld', 'actief');
+    $this->setter = 'set' . sfInflector::camelize($this->veld);    
   }
 
   /**
@@ -113,7 +114,7 @@ class ttNieuwsbriefActions extends sfActions
 	 */	  
 	public function executeActiveer()
 	{
-    $emailAdres = $this->getEmailObjectByUuid($this->getRequestParameter('code'));
+    $emailAdres = $this->getEmailObjectByUuid($this->getRequestParameter('uuid'));
     
     if ($emailAdres && ($emailAdres->getEmail() == $this->getRequestParameter('email')))
     {
@@ -135,13 +136,13 @@ class ttNieuwsbriefActions extends sfActions
 	public function executeBewerk()
 	{
 	 
-    $emailAdres = $this->getEmailObjectByUuid($this->getRequestParameter('code'));
+    $emailAdres = $this->getEmailObjectByUuid($this->getRequestParameter('uuid'));
     $this->interesse_gebieden = InteresseGebiedPeer::getGebieden();
     
     if ($emailAdres && ($emailAdres->getEmail() == urldecode($this->getRequestParameter('email'))))
     {
       $this->email_adres = $emailAdres;
-      $this->persoonlijke_interesses = InteresseGebiedPeer::getInteresseGebieden($this->email_adres->getId(), 'EmailAdres');
+      $this->persoonlijke_interesses = InteresseGebiedPeer::getInteresseGebieden($this->email_adres->getId(), get_class($emailAdres));
     }
     else 
     {
@@ -174,11 +175,11 @@ class ttNieuwsbriefActions extends sfActions
       // Sla interesses op
       foreach($this->interesse_gebieden as $interesse)
       {
-        InteresseGebiedPeer::setGeinteresseerdIn($interesse, $this->hasRequestParameter('interesse_' . $interesse->getId()), $emailAdres->getId(), 'EmailAdres');
+        InteresseGebiedPeer::setGeinteresseerdIn($interesse, $this->hasRequestParameter('interesse_' . $interesse->getId()), $emailAdres->getId(), get_class($emailAdres));
       }
       
       $this->email_adres = $emailAdres;
-      $this->persoonlijke_interesses = InteresseGebiedPeer::getInteresseGebieden($emailAdres->getId(),'EmailAdres');
+      $this->persoonlijke_interesses = InteresseGebiedPeer::getInteresseGebieden($emailAdres->getId(), get_class($emailAdres));
       
       $this->opgeslagen = true;
       
@@ -206,7 +207,21 @@ class ttNieuwsbriefActions extends sfActions
       {
         InteresseGebiedPeer::setGeinteresseerdIn($interesse, false, $emailAdres->getId(),'EmailAdres');
       }
-      $emailAdres->setActief(false);
+      
+      if ($emailAdres instanceof EmailAdres)
+      {
+        $emailAdres->setActief(false);
+      }
+      else
+      {
+        // ophalen uit config van te deactiveren veld
+        if (!method_exists($emailAdres, $this->setter))
+        {
+          throw new Exception (eval("return " . get_class($emailAdres) . "Peer::TABLE_NAME;") . "." . $this->veld . " bestaat niet.");
+        }
+        $emailAdres->{$this->setter}(false);
+      }
+      
       $emailAdres->save();
       $this->setTemplate('mededeling');
       $this->mededeling = 'uitgeschreven';
@@ -224,12 +239,15 @@ class ttNieuwsbriefActions extends sfActions
 	public function executeSendLink()
 	{
     $emailAdres = urldecode($this->getRequestParameter('email')) ? $this->getEmailObjectByEmail(urldecode($this->getRequestParameter('email'))) : null;
-
+    
+    // om automatisch onmiddellijk te kunnen uitschrijven    
+    $direct = $this->getRequestParameter('direct', 0);
+    
     if ($emailAdres)
     {
       try
       {
-        $this->sendAccountInfoMail($emailAdres);
+        $this->sendAccountInfoMail($emailAdres, $direct);
         $this->mededeling = 'linkverzonden';
       }
       catch(exception $e)
@@ -276,13 +294,13 @@ Beste{$naam},
 
 Om uw inschrijving op onze mailinglijst te bevestigen, gelieve op volgende link te klikken of deze te kopiëren en in de adresbalk van uw webbrowser te plakken:
 
-{$urlprefixBevestig}/code/{$emailAdres->getUuid()}/email/" . urlencode($emailAdres->getEmail()) . "
+{$urlprefixBevestig}/uuid/{$emailAdres->getUuid()}/email/" . urlencode($emailAdres->getEmail()) . "
 
 Pas nadat u bevestigd heeft, zal u email van ons ontvangen.
 
 Als u later uw instelling wenst te wijzigen, dan kan dat via volgende link:
 
-{$urlprefixBewerk}/code/{$emailAdres->getUuid()}/email/" . urlencode($emailAdres->getEmail()) . "
+{$urlprefixBewerk}/uuid/{$emailAdres->getUuid()}/email/" . urlencode($emailAdres->getEmail()) . "
 
 Met vriendelijke groeten,
   " . sfConfig::get("sf_mail_sender_name");
@@ -293,12 +311,12 @@ Met vriendelijke groeten,
   }
 
 
-  private function sendAccountInfoMail($emailAdres)
+  private function sendAccountInfoMail($emailAdres, $direct = 0)
   {
     Misc::use_helper('Url');
     
     $naam = $emailAdres->getNaam();
-    $urlprefix = url_for('ttNieuwsbrief/bewerk', true);
+    $urlprefix = url_for('ttNieuwsbrief/' . ($direct ? 'uitschrijven' : 'bewerk'), true);
     $inhoud = "
     
 Beste {$naam},
@@ -307,7 +325,7 @@ In deze e-mail vindt u de link die u aanvroeg via onze website.
 Om de instellingen van uw inschrijving op onze nieuwsbrieven aan te passen of om u uit te schrijven,
 klik op volgende link of kopiëer deze en plak ze in de adresbalk van uw webbrowser.
 
-{$urlprefix}/code/{$emailAdres->getUuid()}/email/" . urlencode($emailAdres->getEmail()) . "
+{$urlprefix}/uuid/{$emailAdres->getUuid()}/email/" . urlencode($emailAdres->getEmail()) . "
 
 Met vriendelijke groeten,
       " . sfConfig::get("sf_mail_sender_name");
