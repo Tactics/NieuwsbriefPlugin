@@ -1,0 +1,58 @@
+validators:
+  myStringValidator:
+    class: sfStringValidator
+    param:
+      min:       2
+      min_error: Deze waarde is te kort
+      
+fields:
+  activiteit1:
+    required:
+      msg:       Vergeet niet een activiteit te selecteren
+
+  voornaam:
+    required:
+      msg:       Dit veld is verplicht in te vullen
+    myStringValidator:
+
+  achternaam:
+    required:
+      msg:       Dit veld is verplicht in te vullen
+    myStringValidator:
+
+  straat:
+    required:
+      msg:       Dit veld is verplicht in te vullen
+    myStringValidator:
+
+  nummer:
+    required:
+      msg:       Dit veld is verplicht in te vullen
+
+  postcode:
+    required:
+      msg:       Dit veld is verplicht in te vullen
+    myStringValidator:
+
+  gemeente:
+    required:
+      msg:       Dit veld is verplicht in te vullen
+    myStringValidator:
+  
+  email:
+    sfEmailValidator:
+      strict:       true
+      email_error:  Dit is geen geldig emailadres
+
+  voorwaarden:
+    required:
+      msg:        U moet akkoord gaan met de algemene voorwaarden alvorens verder te gaan.
+
+
+fillin:
+  enabled: true  # Enable the form repopulation
+  param:
+    name: inschrijving
+#    skip_fields:   [email]  # Do not repopulate these fields
+#    exclude_types: [hidden, password] # Do not repopulate these field types
+    check_types:   [text, checkbox, radio, password, hidden] # Do repopulate these
