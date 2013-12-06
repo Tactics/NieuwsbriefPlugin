@@ -1,0 +1,16 @@
+{
+    "name": "tactics/tt-nieuwsbrief-plugin",
+    "type": "symfony1-plugin",
+    "description": "Creates newsletters!",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Gert Vrebos",
+            "email": "gert@tactics.be"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "composer/installers": "~1.0"
+    }
+}
